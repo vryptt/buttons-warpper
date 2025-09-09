@@ -1,0 +1,16 @@
+{
+  "name": "baileys_helper",
+  "version": "1.0.2",
+  "description": "This is a plugin to make baileys more interactive",
+  "keywords": [
+    "Baileys",
+    "WhatsApp"
+  ],
+  "license": "ISC",
+  "author": "mehebub648",
+  "type": "commonjs",
+  "main": "export.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}

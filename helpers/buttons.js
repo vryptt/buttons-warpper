@@ -164,6 +164,80 @@ function validateAuthoringButtons(buttons) {
   return { errors, warnings, valid: errors.length === 0, cleaned };
 }
 
+// -------------------- ERROR UTILITIES / USER-FRIENDLY FEEDBACK --------------------
+/**
+ * Custom validation error for interactive messaging helpers.
+ * Provides rich structured detail (errors, warnings, example) so callers can
+ * surface actionable feedback to end users / logs. The message property remains
+ * concise while detailed arrays are attached to the instance and serializable via toJSON.
+ */
+class InteractiveValidationError extends Error {
+  /**
+   * @param {string} message High level summary.
+   * @param {{context?: string, errors?: string[], warnings?: string[], example?: any}} meta
+   */
+  constructor(message, { context, errors = [], warnings = [], example } = {}) {
+    super(message);
+    this.name = 'InteractiveValidationError';
+    this.context = context;
+    this.errors = errors;
+    this.warnings = warnings;
+    this.example = example;
+  }
+  toJSON() {
+    return {
+      name: this.name,
+      message: this.message,
+      context: this.context,
+      errors: this.errors,
+      warnings: this.warnings,
+      example: this.example
+    };
+  }
+  /**
+   * Produce a verbose multiline string (for console) describing the problem.
+   * @returns {string}
+   */
+  formatDetailed() {
+    const lines = [
+      `[${this.name}] ${this.message}${this.context ? ' (' + this.context + ')' : ''}`
+    ];
+    if (this.errors?.length) {
+      lines.push('Errors:');
+      this.errors.forEach(e => lines.push('  - ' + e));
+    }
+    if (this.warnings?.length) {
+      lines.push('Warnings:');
+      this.warnings.forEach(w => lines.push('  - ' + w));
+    }
+    if (this.example) {
+      lines.push('Example payload:', JSON.stringify(this.example, null, 2));
+    }
+    return lines.join('\n');
+  }
+}
+
+// Canonical minimal examples to include inside thrown InteractiveValidationError objects.
+const EXAMPLE_PAYLOADS = {
+  sendButtons: {
+    text: 'Choose an option',
+    buttons: [
+      { id: 'opt1', text: 'Option 1' },
+      { id: 'opt2', text: 'Option 2' },
+      { name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: 'Visit Site', url: 'https://example.com' }) }
+    ],
+    footer: 'Footer text'
+  },
+  sendInteractiveMessage: {
+    text: 'Pick an action',
+    interactiveButtons: [
+      { name: 'quick_reply', buttonParamsJson: JSON.stringify({ display_text: 'Hello', id: 'hello' }) },
+      { name: 'cta_copy', buttonParamsJson: JSON.stringify({ display_text: 'Copy Code', copy_code: 'ABC123' }) }
+    ],
+    footer: 'Footer'
+  }
+};
+
 // -------------------- STRICT FORMAT VALIDATORS (User Spec) --------------------
 // Allowed complex button names for sendButtons (legacy quick reply + these cta_* types)
 const SEND_BUTTONS_ALLOWED_COMPLEX = new Set(['cta_url', 'cta_copy', 'cta_call']);
@@ -556,14 +630,19 @@ function convertToInteractiveMessage(content) {
  */
 async function sendInteractiveMessage(sock, jid, content, options = {}) {
   if (!sock) {
-    throw new Error('Socket is required');
+  throw new InteractiveValidationError('Socket is required', { context: 'sendInteractiveMessage' });
   }
 
   // Strict authoring validation if raw interactiveButtons provided (pre-conversion form).
   if (content && Array.isArray(content.interactiveButtons)) {
     const strict = validateSendInteractiveMessagePayload(content);
     if (!strict.valid) {
-      throw new Error('sendInteractiveMessage strict validation failed: ' + strict.errors.join('; '));
+      throw new InteractiveValidationError('Interactive authoring payload invalid', {
+        context: 'sendInteractiveMessage.validateSendInteractiveMessagePayload',
+        errors: strict.errors,
+        warnings: strict.warnings,
+        example: EXAMPLE_PAYLOADS.sendInteractiveMessage
+      });
     }
     if (strict.warnings.length) console.warn('sendInteractiveMessage warnings:', strict.warnings);
   }
@@ -574,8 +653,12 @@ async function sendInteractiveMessage(sock, jid, content, options = {}) {
   // Step 1a: Validate converted content (interactive portion only).
   const { errors: contentErrors, warnings: contentWarnings, valid: contentValid } = validateInteractiveMessageContent(convertedContent);
   if (!contentValid) {
-    const errMsg = 'Interactive content validation failed: ' + contentErrors.join('; ');
-    throw new Error(errMsg);
+    throw new InteractiveValidationError('Converted interactive content invalid', {
+      context: 'sendInteractiveMessage.validateInteractiveMessageContent',
+      errors: contentErrors,
+      warnings: contentWarnings,
+      example: convertToInteractiveMessage(EXAMPLE_PAYLOADS.sendInteractiveMessage)
+    });
   }
   if (contentWarnings.length) {
     // Non-fatal; surface in log for developer insight.
@@ -603,7 +686,11 @@ async function sendInteractiveMessage(sock, jid, content, options = {}) {
     } catch (_) { /* try next */ }
   }
   if (!loaded) {
-    throw new Error('Unable to load required baileys internals (generateWAMessageFromContent, normalizeMessageContent). Ensure the "baileys" package is installed.');
+    throw new InteractiveValidationError('Missing baileys internals', {
+      context: 'sendInteractiveMessage.dynamicImport',
+      errors: ['generateWAMessageFromContent or normalizeMessageContent not found in installed packages: baileys / @whiskeysockets/baileys / @adiwajshing/baileys'],
+      example: { install: 'npm i baileys', requireUsage: "const { generateWAMessageFromContent } = require('baileys')" }
+    });
   }
 
   // Step 3: Build the WAMessage manually.
@@ -682,20 +769,30 @@ async function sendInteractiveMessage(sock, jid, content, options = {}) {
  */
 async function sendInteractiveButtonsBasic(sock, jid, data = {}, options = {}) {
   if (!sock) {
-    throw new Error('Socket is required');
+  throw new InteractiveValidationError('Socket is required', { context: 'sendButtons' });
   }
 
   const { text = '', footer = '', title, subtitle, buttons = [] } = data;
   // Strict payload validation for sendButtons format.
   const strict = validateSendButtonsPayload({ text, buttons, title, subtitle, footer });
   if (!strict.valid) {
-    throw new Error('sendButtons strict validation failed: ' + strict.errors.join('; '));
+    throw new InteractiveValidationError('Buttons payload invalid', {
+      context: 'sendButtons.validateSendButtonsPayload',
+      errors: strict.errors,
+      warnings: strict.warnings,
+      example: EXAMPLE_PAYLOADS.sendButtons
+    });
   }
   if (strict.warnings.length) console.warn('sendButtons warnings:', strict.warnings);
   // Validate authoring buttons early to provide clearer feedback.
   const { errors, warnings, cleaned } = validateAuthoringButtons(buttons);
   if (errors.length) {
-    throw new Error('Button validation failed: ' + errors.join('; '));
+    throw new InteractiveValidationError('Authoring button objects invalid', {
+      context: 'sendButtons.validateAuthoringButtons',
+      errors,
+      warnings,
+      example: EXAMPLE_PAYLOADS.sendButtons.buttons
+    });
   }
   if (warnings.length) {
     console.warn('Button validation warnings:', warnings);
@@ -715,6 +812,7 @@ module.exports = {
   sendInteractiveMessage,
   getButtonType,
   getButtonArgs,
+  InteractiveValidationError,
   // Export validators for external pre-flight usage / testing.
   validateAuthoringButtons,
   validateInteractiveMessageContent,

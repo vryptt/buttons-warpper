@@ -77,6 +77,290 @@ function buildInteractiveButtons(buttons = []) {
 }
 
 /**
+ * Validate authoring-time button objects prior to conversion.
+ * Accepts the liberal set of historical shapes supported by buildInteractiveButtons.
+ * Returns an object with arrays of errors & warnings plus a possibly auto-fixed list.
+ * Validation is intentionally permissive: it only blocks clearly malformed input.
+ *
+ * Allowed shapes per item:
+ *  1. Native: { name: string, buttonParamsJson: string(JSON) }
+ *  2. Legacy: { id: string, text?: string } OR { text: string }
+ *  3. Old Baileys: { buttonId: string, buttonText: { displayText: string } }
+ *  4. Any object containing buttonParamsJson that is valid JSON (passes through)
+ *
+ * @param {Array<object>} buttons Raw user supplied buttons value.
+ * @returns {{errors: string[], warnings: string[], valid: boolean, cleaned: Array<object>}}
+ */
+function validateAuthoringButtons(buttons) {
+  const errors = [];
+  const warnings = [];
+  if (buttons == null) {
+    return { errors: [], warnings: [], valid: true, cleaned: [] };
+  }
+  if (!Array.isArray(buttons)) {
+    errors.push('buttons must be an array');
+    return { errors, warnings, valid: false, cleaned: [] };
+  }
+  // WhatsApp quick replies historically limited (e.g. 3) but native flow may allow more; set generous soft cap.
+  const SOFT_BUTTON_CAP = 25;
+  if (buttons.length === 0) {
+    warnings.push('buttons array is empty');
+  } else if (buttons.length > SOFT_BUTTON_CAP) {
+    warnings.push(`buttons count (${buttons.length}) exceeds soft cap of ${SOFT_BUTTON_CAP}; may be rejected by client`);
+  }
+
+  const cleaned = buttons.map((b, idx) => {
+    if (b == null || typeof b !== 'object') {
+      errors.push(`button[${idx}] is not an object`);
+      return b;
+    }
+    // Native shape
+    if (b.name && b.buttonParamsJson) {
+      if (typeof b.buttonParamsJson !== 'string') {
+        errors.push(`button[${idx}] buttonParamsJson must be string`);
+      } else {
+        try {
+          JSON.parse(b.buttonParamsJson);
+        } catch (e) {
+          errors.push(`button[${idx}] buttonParamsJson is not valid JSON: ${e.message}`);
+        }
+      }
+      return b;
+    }
+    // Legacy minimal quick reply
+    if (b.id || b.text || b.displayText) {
+      if (!(b.id || b.text || b.displayText)) {
+        errors.push(`button[${idx}] legacy shape missing id or text/displayText`);
+      }
+      return b; // buildInteractiveButtons will wrap.
+    }
+    // Old Baileys shape
+    if (b.buttonId && b.buttonText && typeof b.buttonText === 'object' && b.buttonText.displayText) {
+      return b;
+    }
+    // Unknown but attempt to accept if it has buttonParamsJson JSON like value
+    if (b.buttonParamsJson) {
+      if (typeof b.buttonParamsJson !== 'string') {
+        warnings.push(`button[${idx}] has non-string buttonParamsJson; will attempt to stringify`);
+        try {
+          b.buttonParamsJson = JSON.stringify(b.buttonParamsJson);
+        } catch {
+          errors.push(`button[${idx}] buttonParamsJson could not be serialized`);
+        }
+      } else {
+        try { JSON.parse(b.buttonParamsJson); } catch (e) { warnings.push(`button[${idx}] buttonParamsJson not valid JSON (${e.message})`); }
+      }
+      if (!b.name) {
+        warnings.push(`button[${idx}] missing name; defaulting to quick_reply`);
+        b.name = 'quick_reply';
+      }
+      return b;
+    }
+    // If truly unknown and lacks minimal markers, keep but warn.
+    warnings.push(`button[${idx}] unrecognized shape; passing through unchanged`);
+    return b;
+  });
+
+  return { errors, warnings, valid: errors.length === 0, cleaned };
+}
+
+// -------------------- STRICT FORMAT VALIDATORS (User Spec) --------------------
+// Allowed complex button names for sendButtons (legacy quick reply + these cta_* types)
+const SEND_BUTTONS_ALLOWED_COMPLEX = new Set(['cta_url', 'cta_copy', 'cta_call']);
+// Allowed button names for sendInteractiveMessage (expanded set)
+const INTERACTIVE_ALLOWED_NAMES = new Set([
+  'quick_reply', 'cta_url', 'cta_copy', 'cta_call', 'cta_catalog', 'cta_reminder', 'cta_cancel_reminder',
+  'address_message', 'send_location', 'open_webview', 'mpm', 'wa_payment_transaction_details',
+  'automated_greeting_message_view_catalog', 'galaxy_message', 'single_select'
+]);
+
+// Required JSON fields per button name (minimal mandatory keys)
+const REQUIRED_FIELDS_MAP = {
+  cta_url: ['display_text', 'url'],
+  cta_copy: ['display_text', 'copy_code'],
+  cta_call: ['display_text', 'phone_number'],
+  cta_catalog: ['business_phone_number'],
+  cta_reminder: ['display_text'],
+  cta_cancel_reminder: ['display_text'],
+  address_message: ['display_text'],
+  send_location: ['display_text'],
+  open_webview: ['title', 'link'], // link further validated
+  mpm: ['product_id'],
+  wa_payment_transaction_details: ['transaction_id'],
+  automated_greeting_message_view_catalog: ['business_phone_number', 'catalog_product_id'],
+  galaxy_message: ['flow_token', 'flow_id'],
+  single_select: ['title', 'sections'],
+  quick_reply: ['display_text', 'id']
+};
+
+function parseButtonParams(name, buttonParamsJson, errors, warnings, index) {
+  let parsed;
+  try {
+    parsed = JSON.parse(buttonParamsJson);
+  } catch (e) {
+    errors.push(`button[${index}] (${name}) invalid JSON: ${e.message}`);
+    return null;
+  }
+  const req = REQUIRED_FIELDS_MAP[name] || [];
+  for (const f of req) {
+    if (!(f in parsed)) {
+      errors.push(`button[${index}] (${name}) missing required field '${f}'`);
+    }
+  }
+  // Additional nested validation
+  if (name === 'open_webview' && parsed.link) {
+    if (typeof parsed.link !== 'object' || !parsed.link.url) {
+      errors.push(`button[${index}] (open_webview) link.url required`);
+    }
+  }
+  if (name === 'single_select') {
+    if (!Array.isArray(parsed.sections) || parsed.sections.length === 0) {
+      errors.push(`button[${index}] (single_select) sections must be non-empty array`);
+    }
+  }
+  return parsed;
+}
+
+/**
+ * Strict validator for sendButtons input per user specification.
+ * Format: { text: string, buttons: [...] , optional title/subtitle/footer }
+ * Allowed button shapes:
+ *   1. Legacy quick reply: { id, text }
+ *   2. Named buttons: name in SEND_BUTTONS_ALLOWED_COMPLEX with valid buttonParamsJson & required fields
+ */
+function validateSendButtonsPayload(data) {
+  const errors = [];
+  const warnings = [];
+  if (!data || typeof data !== 'object') {
+    return { valid: false, errors: ['payload must be an object'], warnings };
+  }
+  if (!data.text || typeof data.text !== 'string') {
+    errors.push('text is mandatory and must be a string');
+  }
+  if (!Array.isArray(data.buttons) || data.buttons.length === 0) {
+    errors.push('buttons is mandatory and must be a non-empty array');
+  } else {
+    data.buttons.forEach((btn, i) => {
+      if (!btn || typeof btn !== 'object') {
+        errors.push(`button[${i}] must be an object`);
+        return;
+      }
+      // Legacy quick reply
+      if (btn.id && btn.text) {
+        if (typeof btn.id !== 'string' || typeof btn.text !== 'string') {
+          errors.push(`button[${i}] legacy quick reply id/text must be strings`);
+        }
+        return;
+      }
+      if (btn.name && btn.buttonParamsJson) {
+        if (!SEND_BUTTONS_ALLOWED_COMPLEX.has(btn.name)) {
+          errors.push(`button[${i}] name '${btn.name}' not allowed in sendButtons`);
+          return;
+        }
+        if (typeof btn.buttonParamsJson !== 'string') {
+          errors.push(`button[${i}] buttonParamsJson must be string`);
+          return;
+        }
+        parseButtonParams(btn.name, btn.buttonParamsJson, errors, warnings, i);
+        return;
+      }
+      errors.push(`button[${i}] invalid shape (must be legacy quick reply or named ${Array.from(SEND_BUTTONS_ALLOWED_COMPLEX).join(', ')})`);
+    });
+  }
+  return { valid: errors.length === 0, errors, warnings };
+}
+
+/**
+ * Strict validator for sendInteractiveMessage authoring payload (before conversion).
+ * Expected: { text: string, interactiveButtons: [ { name, buttonParamsJson } ... ], optional title/subtitle/footer }
+ */
+function validateSendInteractiveMessagePayload(data) {
+  const errors = [];
+  const warnings = [];
+  if (!data || typeof data !== 'object') {
+    return { valid: false, errors: ['payload must be an object'], warnings };
+  }
+  if (!data.text || typeof data.text !== 'string') {
+    errors.push('text is mandatory and must be a string');
+  }
+  if (!Array.isArray(data.interactiveButtons) || data.interactiveButtons.length === 0) {
+    errors.push('interactiveButtons is mandatory and must be a non-empty array');
+  } else {
+    data.interactiveButtons.forEach((btn, i) => {
+      if (!btn || typeof btn !== 'object') {
+        errors.push(`interactiveButtons[${i}] must be an object`);
+        return;
+      }
+      if (!btn.name || typeof btn.name !== 'string') {
+        errors.push(`interactiveButtons[${i}] missing name`);
+        return;
+      }
+      if (!INTERACTIVE_ALLOWED_NAMES.has(btn.name)) {
+        errors.push(`interactiveButtons[${i}] name '${btn.name}' not allowed`);
+        return;
+      }
+      if (!btn.buttonParamsJson || typeof btn.buttonParamsJson !== 'string') {
+        errors.push(`interactiveButtons[${i}] buttonParamsJson must be string`);
+        return;
+      }
+      parseButtonParams(btn.name, btn.buttonParamsJson, errors, warnings, i);
+    });
+  }
+  return { valid: errors.length === 0, errors, warnings };
+}
+
+/**
+ * Validate top-level interactive content just before WAMessage creation.
+ * Ensures that if interactiveButtons OR interactiveMessage.nativeFlowMessage is present,
+ * the internal button array meets minimal structural requirements.
+ *
+ * @param {object} content Converted content (after optional convertToInteractiveMessage call).
+ * @returns {{errors: string[], warnings: string[], valid: boolean}}
+ */
+function validateInteractiveMessageContent(content) {
+  const errors = [];
+  const warnings = [];
+  if (!content || typeof content !== 'object') {
+    return { errors: ['content must be an object'], warnings, valid: false };
+  }
+  const interactive = content.interactiveMessage;
+  if (!interactive) {
+    // Non-interactive messages are acceptable; nothing to validate.
+    return { errors, warnings, valid: true };
+  }
+  const nativeFlow = interactive.nativeFlowMessage;
+  if (!nativeFlow) {
+    errors.push('interactiveMessage.nativeFlowMessage missing');
+    return { errors, warnings, valid: false };
+  }
+  if (!Array.isArray(nativeFlow.buttons)) {
+    errors.push('nativeFlowMessage.buttons must be an array');
+    return { errors, warnings, valid: false };
+  }
+  if (nativeFlow.buttons.length === 0) {
+    warnings.push('nativeFlowMessage.buttons is empty');
+  }
+  nativeFlow.buttons.forEach((btn, i) => {
+    if (!btn || typeof btn !== 'object') {
+      errors.push(`buttons[${i}] is not an object`);
+      return;
+    }
+    if (!btn.buttonParamsJson) {
+      warnings.push(`buttons[${i}] missing buttonParamsJson (may fail to render)`);
+    } else if (typeof btn.buttonParamsJson !== 'string') {
+      errors.push(`buttons[${i}] buttonParamsJson must be string`);
+    } else {
+      try { JSON.parse(btn.buttonParamsJson); } catch (e) { warnings.push(`buttons[${i}] buttonParamsJson invalid JSON (${e.message})`); }
+    }
+    if (!btn.name) {
+      warnings.push(`buttons[${i}] missing name; defaulting to quick_reply`);
+      btn.name = 'quick_reply';
+    }
+  });
+  return { errors, warnings, valid: errors.length === 0 };
+}
+
+/**
  * Detects button type from normalized message content
  * Mirrors itsukichan's getButtonType function
  */
@@ -275,8 +559,28 @@ async function sendInteractiveMessage(sock, jid, content, options = {}) {
     throw new Error('Socket is required');
   }
 
+  // Strict authoring validation if raw interactiveButtons provided (pre-conversion form).
+  if (content && Array.isArray(content.interactiveButtons)) {
+    const strict = validateSendInteractiveMessagePayload(content);
+    if (!strict.valid) {
+      throw new Error('sendInteractiveMessage strict validation failed: ' + strict.errors.join('; '));
+    }
+    if (strict.warnings.length) console.warn('sendInteractiveMessage warnings:', strict.warnings);
+  }
+
   // Step 1: Convert authoring-time interactiveButtons to native_flow structure.
   const convertedContent = convertToInteractiveMessage(content);
+
+  // Step 1a: Validate converted content (interactive portion only).
+  const { errors: contentErrors, warnings: contentWarnings, valid: contentValid } = validateInteractiveMessageContent(convertedContent);
+  if (!contentValid) {
+    const errMsg = 'Interactive content validation failed: ' + contentErrors.join('; ');
+    throw new Error(errMsg);
+  }
+  if (contentWarnings.length) {
+    // Non-fatal; surface in log for developer insight.
+    console.warn('Interactive content warnings:', contentWarnings);
+  }
 
   // Step 2: Obtain needed internal helper functions.
   let generateWAMessageFromContent, relayMessage, normalizeMessageContent, isJidGroup, generateMessageIDV2;
@@ -382,7 +686,21 @@ async function sendInteractiveButtonsBasic(sock, jid, data = {}, options = {}) {
   }
 
   const { text = '', footer = '', title, subtitle, buttons = [] } = data;
-  const interactiveButtons = buildInteractiveButtons(buttons);
+  // Strict payload validation for sendButtons format.
+  const strict = validateSendButtonsPayload({ text, buttons, title, subtitle, footer });
+  if (!strict.valid) {
+    throw new Error('sendButtons strict validation failed: ' + strict.errors.join('; '));
+  }
+  if (strict.warnings.length) console.warn('sendButtons warnings:', strict.warnings);
+  // Validate authoring buttons early to provide clearer feedback.
+  const { errors, warnings, cleaned } = validateAuthoringButtons(buttons);
+  if (errors.length) {
+    throw new Error('Button validation failed: ' + errors.join('; '));
+  }
+  if (warnings.length) {
+    console.warn('Button validation warnings:', warnings);
+  }
+  const interactiveButtons = buildInteractiveButtons(cleaned);
 
   // Authoring payload (transformed later by convertToInteractiveMessage).
   const payload = { text, footer, interactiveButtons };
@@ -396,5 +714,10 @@ module.exports = {
   sendButtons: sendInteractiveButtonsBasic,
   sendInteractiveMessage,
   getButtonType,
-  getButtonArgs
+  getButtonArgs,
+  // Export validators for external pre-flight usage / testing.
+  validateAuthoringButtons,
+  validateInteractiveMessageContent,
+  validateSendButtonsPayload,
+  validateSendInteractiveMessagePayload
 };

@@ -1,7 +1,8 @@
 {
   "name": "baileys_helper",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "This is a plugin to make baileys more interactive",
+  "homepage": "https://scratchive.com",
   "keywords": [
     "Baileys",
     "WhatsApp"

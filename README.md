@@ -155,16 +155,7 @@ await sendInteractiveMessage(sock, jid, {
 
 > Tip: Legacy simple objects like `{ id: 'x', text: 'Label' }` passed to `sendButtons` auto‑convert to `quick_reply`.
 
-## Test Bot Commands
-
-Run `node app-wks.js` then in WhatsApp chat send:
-
-| Command | What It Does |
-|---------|--------------|
-| `!ping` | Plain text reply |
-| `!buttons` | Demonstrates quick reply + URL + copy + call buttons |
-| `!advanced` | Shows quick reply + single select list together |
-| `!help` | Lists all commands |
+<!-- Removed outdated Test Bot Commands section (referenced non-existent app-wks.js) -->
 
 ## Technical Details
 

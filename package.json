@@ -1,21 +1,44 @@
 {
-  "name": "baileys_helper",
-  "version": "1.0.6",
-  "description": "This is a plugin to make baileys more interactive",
-  "homepage": "https://scratchive.com",
-  "keywords": [
-    "Baileys",
-    "WhatsApp"
-  ],
-  "license": "ISC",
-  "author": "mehebub648",
-  "type": "commonjs",
-  "main": "export.js",
+  "name": "buttons-warpper",
+  "version": "1.0.0",
+  "description": "A lightweight utility for creating and managing WhatsApp interactive buttons (quick replies, URL, and call buttons) using WhiskeSockets Baileys. It simplifies sending structured button messages through the Baileys multi-device API, with clean and modular code for easy integration.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "clean": "rm -rf dist",
+    "prebuild": "npm run clean",
+    "prepublishOnly": "npm run build",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "format": "prettier --write \"src/**/*.ts\""
+  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/mehebub648/Scratchive-Module-BaileysHelper.git"
+    "url": "git+https://github.com/vryptt/buttons-warpper.git"
   },
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "keywords": [],
+  "author": "Vryptt",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/vryptt/buttons-warpper/issues"
+  },
+  "homepage": "https://github.com/vryptt/buttons-warpper#readme",
+  "devDependencies": {
+    "@types/node": "^24.9.1",
+    "@typescript-eslint/eslint-plugin": "^8.46.2",
+    "@typescript-eslint/parser": "^8.46.2",
+    "eslint": "^9.38.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "jest": "^30.2.0",
+    "prettier": "^3.6.2",
+    "ts-jest": "^29.4.5",
+    "typescript": "^5.9.3"
   }
 }

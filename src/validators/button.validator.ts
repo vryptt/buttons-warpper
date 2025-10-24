@@ -67,49 +67,61 @@ export function validateAuthoringButtons(
       return b;
     }
 
-    if ((b as any).name && (b as any).buttonParamsJson) {
-      if (typeof (b as any).buttonParamsJson !== 'string') {
+    const btn = b as any;
+
+    // Native flow button
+    if (btn.name && btn.buttonParamsJson) {
+      if (typeof btn.buttonParamsJson !== 'string') {
         errors.push(`button[${idx}] buttonParamsJson must be string`);
       } else {
         try {
-          JSON.parse((b as any).buttonParamsJson);
+          JSON.parse(btn.buttonParamsJson);
         } catch (e) {
-          errors.push(`button[${idx}] buttonParamsJson is not valid JSON: ${(e as Error).message}`);
+          errors.push(
+            `button[${idx}] buttonParamsJson is not valid JSON: ${(e as Error).message}`
+          );
         }
       }
       return b;
     }
 
-    if ((b as any).id || (b as any).text || (b as any).displayText) {
-      if (!((b as any).id || (b as any).text || (b as any).displayText)) {
+    // Legacy button
+    if (btn.id || btn.text || btn.displayText) {
+      if (!(btn.id || btn.text || btn.displayText)) {
         errors.push(`button[${idx}] legacy shape missing id or text/displayText`);
       }
       return b;
     }
 
-    if ((b as any).buttonId && (b as any).buttonText?.displayText) {
+    // Old Baileys button
+    if (btn.buttonId && btn.buttonText?.displayText) {
       return b;
     }
 
-    if ((b as any).buttonParamsJson) {
-      if (typeof (b as any).buttonParamsJson !== 'string') {
-        warnings.push(`button[${idx}] has non-string buttonParamsJson; will attempt to stringify`);
+    // Try to fix buttonParamsJson
+    if (btn.buttonParamsJson) {
+      if (typeof btn.buttonParamsJson !== 'string') {
+        warnings.push(
+          `button[${idx}] has non-string buttonParamsJson; will attempt to stringify`
+        );
         try {
-          (b as any).buttonParamsJson = JSON.stringify((b as any).buttonParamsJson);
+          btn.buttonParamsJson = JSON.stringify(btn.buttonParamsJson);
         } catch {
           errors.push(`button[${idx}] buttonParamsJson could not be serialized`);
         }
       } else {
         try {
-          JSON.parse((b as any).buttonParamsJson);
+          JSON.parse(btn.buttonParamsJson);
         } catch (e) {
-          warnings.push(`button[${idx}] buttonParamsJson not valid JSON (${(e as Error).message})`);
+          warnings.push(
+            `button[${idx}] buttonParamsJson not valid JSON (${(e as Error).message})`
+          );
         }
       }
 
-      if (!(b as any).name) {
+      if (!btn.name) {
         warnings.push(`button[${idx}] missing name; defaulting to quick_reply`);
-        (b as any).name = 'quick_reply';
+        btn.name = 'quick_reply';
       }
       return b;
     }

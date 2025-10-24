@@ -1,9 +1,17 @@
 export interface BaileysInternals {
-  generateWAMessageFromContent: Function;
-  normalizeMessageContent: Function;
-  isJidGroup: Function;
-  generateMessageIDV2: Function;
-  relayMessage: Function;
+  generateWAMessageFromContent: (
+    jid: string,
+    message: any,
+    options: any
+  ) => any;
+  normalizeMessageContent: (message: any) => any;
+  isJidGroup: (jid: string) => boolean;
+  generateMessageIDV2: (jid?: string) => string;
+  relayMessage: (
+    jid: string,
+    message: any,
+    options: any
+  ) => Promise<void>;
 }
 
 let cachedBaileys: BaileysInternals | null = null;
@@ -20,10 +28,14 @@ export function loadBaileysInternals(sock: any): BaileysInternals {
       const mod = require(pkg);
       const internals: BaileysInternals = {
         generateWAMessageFromContent:
-          mod.generateWAMessageFromContent || mod.Utils?.generateWAMessageFromContent,
+          mod.generateWAMessageFromContent || 
+          mod.Utils?.generateWAMessageFromContent,
         normalizeMessageContent:
-          mod.normalizeMessageContent || mod.Utils?.normalizeMessageContent,
-        isJidGroup: mod.isJidGroup || mod.WABinary?.isJidGroup,
+          mod.normalizeMessageContent || 
+          mod.Utils?.normalizeMessageContent,
+        isJidGroup: 
+          mod.isJidGroup || 
+          mod.WABinary?.isJidGroup,
         generateMessageIDV2:
           mod.generateMessageIDV2 ||
           mod.Utils?.generateMessageIDV2 ||
@@ -36,7 +48,9 @@ export function loadBaileysInternals(sock: any): BaileysInternals {
         cachedBaileys = internals;
         return internals;
       }
-    } catch {}
+    } catch (error) {
+      // Continue to next package
+    }
   }
 
   throw new Error(

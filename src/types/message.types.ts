@@ -1,4 +1,4 @@
-import { NativeFlowButton } from './button.types';
+import { NativeFlowButton, ButtonInput } from './button.types';
 
 export interface InteractiveMessageContent {
   interactiveMessage: {
@@ -38,6 +38,7 @@ export interface SendOptions {
   additionalAttributes?: Record<string, any>;
   statusJidList?: string[];
   additionalNodes?: BinaryNode[];
+  [key: string]: any;
 }
 
 export interface BinaryNode {
@@ -51,9 +52,19 @@ export type ButtonType = 'list' | 'buttons' | 'native_flow' | null;
 export interface WAMessage {
   key: {
     id: string;
-    remoteJid: string;
-    fromMe: boolean;
+    remoteJid?: string;
+    fromMe?: boolean;
+    participant?: string;
   };
   message: any;
-  messageTimestamp?: number;
+  messageTimestamp?: number | Long;
+  pushName?: string;
+  broadcast?: boolean;
+  [key: string]: any;
+}
+
+export interface Long {
+  low: number;
+  high: number;
+  unsigned: boolean;
 }

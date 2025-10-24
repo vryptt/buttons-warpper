@@ -1,4 +1,4 @@
-import { ValidationResult, InteractiveMessageContent } from '../types';
+import { ValidationResult } from '../types';
 
 export function validateInteractiveMessageContent(content: any): ValidationResult {
   const errors: string[] = [];

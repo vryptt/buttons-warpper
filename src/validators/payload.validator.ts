@@ -1,4 +1,4 @@
-import { ValidationResult, SendButtonsPayload, AuthoringPayload } from '../types';
+import { ValidationResult } from '../types';
 import {
   SEND_BUTTONS_ALLOWED_COMPLEX,
   INTERACTIVE_ALLOWED_NAMES

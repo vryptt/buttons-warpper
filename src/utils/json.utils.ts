@@ -1,7 +1,7 @@
 export function safeJSONParse<T = any>(
   str: string,
   errors: string[],
-  warnings: string[],
+  _warnings: string[],
   index: number,
   name: string
 ): T | null {

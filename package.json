@@ -24,7 +24,7 @@
   "keywords": [],
   "author": "Vryptt",
   "license": "ISC",
-  "type": "module",
+  "type": "commonjs",
   "bugs": {
     "url": "https://github.com/vryptt/buttons-warpper/issues"
   },

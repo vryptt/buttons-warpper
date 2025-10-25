@@ -29,3 +29,5 @@ export default {
   validateSendButtonsPayload,
   validateSendInteractiveMessagePayload
 };
+
+export default initFunction;

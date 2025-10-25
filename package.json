@@ -1,6 +1,6 @@
 {
   "name": "buttons-warpper",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A lightweight utility for creating and managing WhatsApp interactive buttons (quick replies, URL, and call buttons) using WhiskeSockets Baileys. It simplifies sending structured button messages through the Baileys multi-device API, with clean and modular code for easy integration.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

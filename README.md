@@ -38,10 +38,12 @@ Fungsi yang ditingkatkan yang disediakan oleh package `buttons-warpper` mengatas
 2. **Mengonversi** format `interactiveButtons` WhiskeySockets ke struktur protobuf yang tepat
 3. **Menambahkan binary node yang hilang** (`biz`, `interactive`, `native_flow`, `bot`) melalui `additionalNodes`
 4. **Menangani secara otomatis** persyaratan chat pribadi vs grup
+5. **Menginjeksi method langsung** ke object sock untuk kemudahan penggunaan
 
 ## 🚀 Fitur Utama
 
-- ✅ **Tidak ada modifikasi** pada folder WhiskeySockets atau itsukichan
+- ✅ **Tidak ada modifikasi** pada folder WhiskeySockets
+- ✅ **Method terintegrasi** langsung ke sock object
 - ✅ **Fungsionalitas template dihapus** sesuai permintaan
 - ✅ **Injeksi binary node otomatis** untuk pesan tombol
 - ✅ **Dukungan chat pribadi** (menambahkan node `bot` dengan `biz_bot: '1'`)
@@ -63,12 +65,31 @@ yarn add buttons-warpper
 
 ## 🔧 Memulai Cepat
 
-### Penggunaan Dasar (Kasus Paling Umum)
+### Setup Awal
 
 ```javascript
-const { sendButtons } = require('buttons-warpper');
+import { makeWASocket } from "@whiskeysockets/baileys";
+import initFunction from "buttons-warpper";
 
-await sendButtons(sock, jid, {
+const startSock = async function() {
+  const sock = makeWASocket({ /* Options */ });
+  
+  // Inisialisasi wrapper - menambahkan method ke sock
+  await initFunction(sock);
+  
+  // Sekarang sock memiliki method tambahan:
+  // - sock.sendButtons()
+  // - sock.sendInteractiveMessage()
+}
+```
+
+### Penggunaan Dasar (Kasus Paling Umum)
+
+Setelah inisialisasi, Anda dapat langsung memanggil method dari sock:
+
+```javascript
+// Method sendButtons sudah terintegrasi ke sock
+await sock.sendButtons(jid, {
   title: 'Judul Header',              // header opsional
   text: 'Pilih salah satu opsi di bawah',    // body
   footer: 'Teks footer',              // footer opsional
@@ -87,12 +108,11 @@ await sendButtons(sock, jid, {
 
 ### Penggunaan Lanjutan (Beberapa Jenis Tombol)
 
-Untuk kontrol penuh dengan beberapa jenis tombol lanjutan dalam satu pesan, gunakan `sendInteractiveMessage` dengan `interactiveButtons` secara langsung:
+Untuk kontrol penuh dengan beberapa jenis tombol lanjutan dalam satu pesan, gunakan `sendInteractiveMessage` yang juga sudah terintegrasi:
 
 ```javascript
-const { sendInteractiveMessage } = require('buttons-warpper');
-
-await sendInteractiveMessage(sock, jid, {
+// Method sendInteractiveMessage sudah terintegrasi ke sock
+await sock.sendInteractiveMessage(jid, {
   text: 'Demo native flow lanjutan',
   footer: 'Semua fitur',
   interactiveButtons: [
@@ -142,7 +162,7 @@ Berikut adalah nilai `name` yang paling umum dan diamati untuk `nativeFlowMessag
 ### Contoh: URL, Copy & Call Bersamaan
 
 ```javascript
-await sendInteractiveMessage(sock, jid, {
+await sock.sendInteractiveMessage(jid, {
   text: 'Aksi kontak',
   interactiveButtons: [
     { 
@@ -173,7 +193,7 @@ await sendInteractiveMessage(sock, jid, {
 ### Contoh: Balasan Cepat + Katalog
 
 ```javascript
-await sendInteractiveMessage(sock, jid, {
+await sock.sendInteractiveMessage(jid, {
   text: 'Jelajahi produk atau balas',
   interactiveButtons: [
     { 
@@ -201,7 +221,7 @@ await sendInteractiveMessage(sock, jid, {
 ### Contoh: Permintaan Lokasi
 
 ```javascript
-await sendInteractiveMessage(sock, jid, {
+await sock.sendInteractiveMessage(jid, {
   text: 'Silakan bagikan lokasi Anda',
   interactiveButtons: [
     { 
@@ -217,7 +237,7 @@ await sendInteractiveMessage(sock, jid, {
 ### Contoh: Menu Select Tunggal
 
 ```javascript
-await sendInteractiveMessage(sock, jid, {
+await sock.sendInteractiveMessage(jid, {
   text: 'Pilih satu item',
   interactiveButtons: [
     { 
@@ -239,13 +259,38 @@ await sendInteractiveMessage(sock, jid, {
 
 ## 📚 Referensi API
 
-### `sendInteractiveMessage(sock, jid, content, options)`
+### `initFunction(sock)`
 
-Helper tingkat rendah untuk mengirim pesan interaktif dengan kontrol penuh.
+Fungsi inisialisasi yang menambahkan method `sendInteractiveMessage` dan `sendButtons` ke object sock.
 
 #### Parameter
 
 - **`sock`** (Object): Socket WhiskeySockets/Baileys yang aktif
+
+#### Return
+
+Promise yang menyelesaikan dengan sock object yang sudah di-extend dengan method tambahan.
+
+#### Contoh
+
+```javascript
+import { makeWASocket } from "@whiskeysockets/baileys";
+import initFunction from "buttons-warpper";
+
+const sock = makeWASocket({ /* Options */ });
+await initFunction(sock);
+
+// Sekarang sock memiliki method tambahan
+await sock.sendButtons(jid, { /* ... */ });
+await sock.sendInteractiveMessage(jid, { /* ... */ });
+```
+
+### `sock.sendInteractiveMessage(jid, content, options)`
+
+Method terintegrasi untuk mengirim pesan interaktif dengan kontrol penuh.
+
+#### Parameter
+
 - **`jid`** (String): JID WhatsApp tujuan (pengguna atau grup)
 - **`content`** (Object): Konten pesan dengan properti berikut:
   - `text` (String): Teks body
@@ -266,7 +311,7 @@ Promise yang menyelesaikan dengan objek `WAMessage` lengkap yang dibangun.
 #### Contoh
 
 ```javascript
-await sendInteractiveMessage(sock, jid, {
+await sock.sendInteractiveMessage(jid, {
   text: 'Pilih atau jelajahi',
   footer: 'Demo lanjutan',
   interactiveButtons: [
@@ -285,15 +330,50 @@ await sendInteractiveMessage(sock, jid, {
 });
 ```
 
-### `sendButtons(sock, jid, content, options)`
+### `sock.sendButtons(jid, data, options)`
 
-Helper yang disederhanakan untuk skenario tombol umum.
+Method terintegrasi yang disederhanakan untuk skenario tombol umum.
 
 #### Parameter
 
-Sama seperti `sendInteractiveMessage`, tetapi dengan dukungan sintaks tombol yang disederhanakan.
+- **`jid`** (String): JID WhatsApp tujuan (pengguna atau grup)
+- **`data`** (Object): Data tombol dengan properti berikut:
+  - `text` (String): Teks body (default: '')
+  - `footer` (String): Teks footer (default: '')
+  - `title` (String): Judul header (opsional)
+  - `subtitle` (String): Subjudul header (opsional)
+  - `buttons` (Array): Array tombol (bentuk sederhana atau lengkap)
+- **`options`** (Object): Opsi tambahan (sama dengan sendInteractiveMessage)
+
+#### Return
+
+Promise yang menyelesaikan dengan objek `WAMessage` lengkap yang dibangun.
+
+#### Contoh
+
+```javascript
+await sock.sendButtons(jid, {
+  text: 'Pilih opsi',
+  footer: 'Powered by Bot',
+  buttons: [
+    { id: 'opt1', text: 'Opsi 1' },
+    { id: 'opt2', text: 'Opsi 2' }
+  ]
+});
+```
 
 ## 🔍 Detail Teknis
+
+### Arsitektur Wrapper
+
+Package ini bekerja dengan menginjeksi method langsung ke object sock melalui fungsi `initFunction`. Setelah inisialisasi, method `sendButtons` dan `sendInteractiveMessage` menjadi bagian dari sock dan dapat dipanggil seperti method bawaan lainnya.
+
+```
+makeWASocket() → initFunction(sock) → sock dengan method tambahan
+                                       ↓
+                                   sock.sendButtons()
+                                   sock.sendInteractiveMessage()
+```
 
 ### Struktur Binary Node
 

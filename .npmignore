@@ -3,6 +3,9 @@ src/
 *.ts
 !*.d.ts
 
+# Yarn files
+.yarn/
+
 # Tests
 **/__tests__/
 **/__mocks__/

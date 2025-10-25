@@ -38,10 +38,12 @@ The enhanced functionality provided by the `buttons-warpper` package addresses t
 2. **Converting** WhiskeySockets' `interactiveButtons` format to the proper protobuf structure
 3. **Adding missing binary nodes** (`biz`, `interactive`, `native_flow`, `bot`) via `additionalNodes`
 4. **Automatically handling** private vs group chat requirements
+5. **Injecting methods directly** into sock object for ease of use
 
 ## 🚀 Key Features
 
-- ✅ **No modifications** to WhiskeySockets or itsukichan folders
+- ✅ **No modifications** to WhiskeySockets folder
+- ✅ **Integrated methods** directly into sock object
 - ✅ **Template functionality removed** as requested
 - ✅ **Automatic binary node injection** for button messages
 - ✅ **Private chat support** (adds `bot` node with `biz_bot: '1'`)
@@ -63,12 +65,31 @@ yarn add buttons-warpper
 
 ## 🔧 Quick Start
 
-### Basic Usage (Most Common Case)
+### Initial Setup
 
 ```javascript
-const { sendButtons } = require('buttons-warpper');
+import { makeWASocket } from "@whiskeysockets/baileys";
+import initFunction from "buttons-warpper";
 
-await sendButtons(sock, jid, {
+const startSock = async function() {
+  const sock = makeWASocket({ /* Options */ });
+  
+  // Initialize wrapper - adds methods to sock
+  await initFunction(sock);
+  
+  // Now sock has additional methods:
+  // - sock.sendButtons()
+  // - sock.sendInteractiveMessage()
+}
+```
+
+### Basic Usage (Most Common Case)
+
+After initialization, you can directly call methods from sock:
+
+```javascript
+// sendButtons method is now integrated into sock
+await sock.sendButtons(jid, {
   title: 'Header Title',            // optional header
   text: 'Pick one option below',    // body
   footer: 'Footer text',            // optional footer
@@ -87,12 +108,11 @@ await sendButtons(sock, jid, {
 
 ### Advanced Usage (Multiple Button Types)
 
-For full control with multiple advanced button kinds in one message, use `sendInteractiveMessage` with `interactiveButtons` directly:
+For full control with multiple advanced button kinds in one message, use `sendInteractiveMessage` which is also integrated:
 
 ```javascript
-const { sendInteractiveMessage } = require('buttons-warpper');
-
-await sendInteractiveMessage(sock, jid, {
+// sendInteractiveMessage method is now integrated into sock
+await sock.sendInteractiveMessage(jid, {
   text: 'Advanced native flow demo',
   footer: 'All the things',
   interactiveButtons: [
@@ -142,7 +162,7 @@ Below are the most common and observed `name` values for `nativeFlowMessage.butt
 ### Example: URL, Copy & Call Together
 
 ```javascript
-await sendInteractiveMessage(sock, jid, {
+await sock.sendInteractiveMessage(jid, {
   text: 'Contact actions',
   interactiveButtons: [
     { 
@@ -173,7 +193,7 @@ await sendInteractiveMessage(sock, jid, {
 ### Example: Mixed Quick Replies + Catalog
 
 ```javascript
-await sendInteractiveMessage(sock, jid, {
+await sock.sendInteractiveMessage(jid, {
   text: 'Explore products or reply',
   interactiveButtons: [
     { 
@@ -201,7 +221,7 @@ await sendInteractiveMessage(sock, jid, {
 ### Example: Location Request
 
 ```javascript
-await sendInteractiveMessage(sock, jid, {
+await sock.sendInteractiveMessage(jid, {
   text: 'Please share your location',
   interactiveButtons: [
     { 
@@ -217,7 +237,7 @@ await sendInteractiveMessage(sock, jid, {
 ### Example: Single Select Menu
 
 ```javascript
-await sendInteractiveMessage(sock, jid, {
+await sock.sendInteractiveMessage(jid, {
   text: 'Choose one item',
   interactiveButtons: [
     { 
@@ -239,13 +259,38 @@ await sendInteractiveMessage(sock, jid, {
 
 ## 📚 API Reference
 
-### `sendInteractiveMessage(sock, jid, content, options)`
+### `initFunction(sock)`
 
-Low-level helper for sending interactive messages with full control.
+Initialization function that adds `sendInteractiveMessage` and `sendButtons` methods to the sock object.
 
 #### Parameters
 
 - **`sock`** (Object): Active WhiskeySockets/Baileys socket
+
+#### Returns
+
+Promise that resolves with the extended sock object with additional methods.
+
+#### Example
+
+```javascript
+import { makeWASocket } from "@whiskeysockets/baileys";
+import initFunction from "buttons-warpper";
+
+const sock = makeWASocket({ /* Options */ });
+await initFunction(sock);
+
+// Now sock has additional methods
+await sock.sendButtons(jid, { /* ... */ });
+await sock.sendInteractiveMessage(jid, { /* ... */ });
+```
+
+### `sock.sendInteractiveMessage(jid, content, options)`
+
+Integrated method for sending interactive messages with full control.
+
+#### Parameters
+
 - **`jid`** (String): Destination WhatsApp JID (user or group)
 - **`content`** (Object): Message content with the following properties:
   - `text` (String): Body text
@@ -266,7 +311,7 @@ Promise that resolves with the full constructed `WAMessage` object.
 #### Example
 
 ```javascript
-await sendInteractiveMessage(sock, jid, {
+await sock.sendInteractiveMessage(jid, {
   text: 'Pick or explore',
   footer: 'Advanced demo',
   interactiveButtons: [
@@ -285,15 +330,50 @@ await sendInteractiveMessage(sock, jid, {
 });
 ```
 
-### `sendButtons(sock, jid, content, options)`
+### `sock.sendButtons(jid, data, options)`
 
-Simplified helper for common button scenarios.
+Integrated simplified method for common button scenarios.
 
 #### Parameters
 
-Same as `sendInteractiveMessage`, but with simplified button syntax support.
+- **`jid`** (String): Destination WhatsApp JID (user or group)
+- **`data`** (Object): Button data with the following properties:
+  - `text` (String): Body text (default: '')
+  - `footer` (String): Footer text (default: '')
+  - `title` (String): Header title (optional)
+  - `subtitle` (String): Header subtitle (optional)
+  - `buttons` (Array): Array of buttons (simple or full form)
+- **`options`** (Object): Extra options (same as sendInteractiveMessage)
+
+#### Returns
+
+Promise that resolves with the full constructed `WAMessage` object.
+
+#### Example
+
+```javascript
+await sock.sendButtons(jid, {
+  text: 'Choose option',
+  footer: 'Powered by Bot',
+  buttons: [
+    { id: 'opt1', text: 'Option 1' },
+    { id: 'opt2', text: 'Option 2' }
+  ]
+});
+```
 
 ## 🔍 Technical Details
+
+### Wrapper Architecture
+
+This package works by injecting methods directly into the sock object through the `initFunction`. After initialization, `sendButtons` and `sendInteractiveMessage` methods become part of sock and can be called like built-in methods.
+
+```
+makeWASocket() → initFunction(sock) → sock with additional methods
+                                       ↓
+                                   sock.sendButtons()
+                                   sock.sendInteractiveMessage()
+```
 
 ### Binary Node Structure
 

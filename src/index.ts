@@ -16,6 +16,13 @@ import {
   validateSendButtonsPayload,
   validateSendInteractiveMessagePayload
 } from './validators';
+import {
+  createDocumentHeader,
+  createImageHeader,
+  createVideoHeader,
+  createContextInfo,
+  createExternalAdReply
+} from './utils';
 
 export default {
   initFunction,
@@ -27,7 +34,12 @@ export default {
   validateAuthoringButtons,
   validateInteractiveMessageContent,
   validateSendButtonsPayload,
-  validateSendInteractiveMessagePayload
+  validateSendInteractiveMessagePayload,
+  createDocumentHeader,
+  createImageHeader,
+  createVideoHeader,
+  createContextInfo,
+  createExternalAdReply
 };
 
 export default initFunction;

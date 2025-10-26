@@ -25,31 +25,37 @@ export type ButtonInput =
 export interface QuickReplyParams {
   display_text: string;
   id: string;
+  has_multiple_buttons?: boolean;
 }
 
 export interface CtaUrlParams {
   display_text: string;
   url: string;
   merchant_url?: string;
+  has_multiple_buttons?: boolean;
 }
 
 export interface CtaCopyParams {
   display_text: string;
   copy_code: string;
+  has_multiple_buttons?: boolean;
 }
 
 export interface CtaCallParams {
   display_text: string;
   phone_number: string;
+  has_multiple_buttons?: boolean;
 }
 
 export interface CtaCatalogParams {
   business_phone_number: string;
+  has_multiple_buttons?: boolean;
 }
 
 export interface CtaReminderParams {
   display_text: string;
   reminder_timestamp?: number;
+  has_multiple_buttons?: boolean;
 }
 
 export interface OpenWebviewParams {
@@ -57,6 +63,7 @@ export interface OpenWebviewParams {
   link: {
     url: string;
   };
+  has_multiple_buttons?: boolean;
 }
 
 export interface SingleSelectParams {
@@ -70,6 +77,7 @@ export interface SingleSelectParams {
       id: string;
     }>;
   }>;
+  has_multiple_buttons?: boolean;
 }
 
 export interface MpmParams {
@@ -79,6 +87,34 @@ export interface MpmParams {
 export interface GalaxyMessageParams {
   flow_token: string;
   flow_id: string;
+}
+
+export interface LimitedTimeOfferParams {
+  text?: string;
+  url?: string;
+  copy_code?: string;
+  expiration_time?: number;
+}
+
+export interface BottomSheetParams {
+  in_thread_buttons_limit?: number;
+  divider_indices?: number[];
+  list_title?: string;
+  button_title?: string;
+}
+
+export interface TapTargetConfiguration {
+  title?: string;
+  description?: string;
+  canonical_url?: string;
+  domain?: string;
+  button_index?: number;
+}
+
+export interface NativeFlowMessageParams {
+  limited_time_offer?: LimitedTimeOfferParams;
+  bottom_sheet?: BottomSheetParams;
+  tap_target_configuration?: TapTargetConfiguration;
 }
 
 export type ButtonParamsJson = 
@@ -93,3 +129,5 @@ export type ButtonParamsJson =
   | MpmParams
   | GalaxyMessageParams
   | Record<string, any>;
+  
+  

@@ -67,7 +67,8 @@ export async function sendInteractiveMessage(
     relayMessage
   } = loadBaileysInternals(sock);
 
-  const userJid = sock.authState?.creds?.me?.id || sock.user?.id;
+  const userJid = options.userJid || sock.authState?.creds?.me?.id || sock.user?.id;
+
   const fullMsg = generateWAMessageFromContent(jid, convertedContent, {
     logger: sock.logger,
     userJid,
@@ -85,17 +86,20 @@ export async function sendInteractiveMessage(
     const isPrivate = !isJidGroup(jid);
 
     additionalNodes.push(buttonsNode);
+    
     if (isPrivate) {
       additionalNodes.push({ tag: 'bot', attrs: { biz_bot: '1' } });
     }
 
     console.log('Interactive send:', {
       type: buttonType,
+      hasMedia: !!convertedContent.interactiveMessage?.header?.hasMediaAttachment,
+      hasContextInfo: !!convertedContent.interactiveMessage?.contextInfo,
       nodes: additionalNodes.map(n => ({ tag: n.tag, attrs: n.attrs })),
       private: isPrivate
     });
   }
-  
+
   await relayMessage(jid, fullMsg.message, {
     messageId: fullMsg.key.id,
     useCachedGroupMetadata: options.useCachedGroupMetadata,
@@ -127,7 +131,8 @@ export async function sendButtons(
     });
   }
 
-  const { text = '', footer = '', title, subtitle, buttons = [] } = data;
+  const { text = null, footer = '', title, subtitle, buttons = [], messageParams, header, contextInfo } = data;
+  
   const validation = validateSendButtonsPayload({
     text,
     buttons,
@@ -162,13 +167,16 @@ export async function sendButtons(
   if (buttonValidation.warnings.length > 0) {
     console.warn('Button validation warnings:', buttonValidation.warnings);
   }
-
+  
   const payload: AuthoringPayload = {
     text,
     footer,
     interactiveButtons: buildInteractiveButtons(buttonValidation.cleaned),
     ...(title && { title }),
-    ...(subtitle && { subtitle })
+    ...(subtitle && { subtitle }),
+    ...(messageParams && { messageParams }),
+    ...(header && { header }),
+    ...(contextInfo && { contextInfo })
   };
 
   return sendInteractiveMessage(sock, jid, payload, options);

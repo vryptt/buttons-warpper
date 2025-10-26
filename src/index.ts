@@ -24,7 +24,7 @@ import {
   createExternalAdReply
 } from './utils';
 
-export default {
+export {
   initFunction,
   sendButtons,
   sendInteractiveMessage,

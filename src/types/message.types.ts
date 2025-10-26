@@ -7,12 +7,13 @@ export interface InteractiveMessageContent {
     text: string | null;
   };
   footer?: {
-    text: string;
+    text?: string;
   };
-  nativeFlowMessage: {
+  nativeFlowMessage?: {
     buttons: NativeFlowButton[];
     messageParamsJson?: string;
   };
+  interactiveMessage?: Record<string, unknown>;
 }
 
 export interface AuthoringPayload {

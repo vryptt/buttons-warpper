@@ -1,4 +1,4 @@
-import { DocumentMessage, ImageMessage, VideoMessage, InteractiveHeader } from '../types';
+import { InteractiveHeader } from '../types';
 
 export interface MediaOptions {
   fileName?: string;

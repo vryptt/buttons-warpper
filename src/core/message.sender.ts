@@ -90,14 +90,6 @@ export async function sendInteractiveMessage(
     if (isPrivate) {
       additionalNodes.push({ tag: 'bot', attrs: { biz_bot: '1' } });
     }
-
-    console.log('Interactive send:', {
-      type: buttonType,
-      hasMedia: !!convertedContent.interactiveMessage?.header?.hasMediaAttachment,
-      hasContextInfo: !!convertedContent.interactiveMessage?.contextInfo,
-      nodes: additionalNodes.map(n => ({ tag: n.tag, attrs: n.attrs })),
-      private: isPrivate
-    });
   }
 
   await relayMessage(jid, fullMsg.message, {

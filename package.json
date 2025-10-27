@@ -1,5 +1,5 @@
 {
-  "name": "buttons-warpper",
+  "name": "flow-buttons",
   "version": "1.2.0",
   "description": "A lightweight utility for creating and managing WhatsApp interactive buttons (quick replies, URL, and call buttons) using WhiskeSockets Baileys. It simplifies sending structured button messages through the Baileys multi-device API, with clean and modular code for easy integration.",
   "main": "dist/index.js",
@@ -33,6 +33,7 @@
     "@types/node": "^24.9.1",
     "@typescript-eslint/eslint-plugin": "^8.46.2",
     "@typescript-eslint/parser": "^8.46.2",
+    "@whiskeysockets/baileys": "^7.0.0-rc.6",
     "eslint": "^9.38.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.4",

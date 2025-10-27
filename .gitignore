@@ -1,6 +1,8 @@
 # Dependencies
 node_modules/
 .yarn/
+example/
+baileys_auth_info/
 
 # Build output
 dist/

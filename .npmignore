@@ -85,6 +85,8 @@ demo/
 # Scripts
 scripts/
 tools/
+example/
+baileys_auth_info/
 
 # Misc
 TODO.md
